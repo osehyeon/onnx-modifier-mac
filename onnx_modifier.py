@@ -16,6 +16,10 @@ from utils import np2onnxdtype, str2onnxdtype
 from utils import make_new_node, make_attr_changed_node, make_input
 from utils import get_infered_shape
 
+# BEGIN
+import sys
+# END
+
 class onnxModifier:
     def __init__(self, model_name, model_proto):
         self.model_name = model_name
@@ -469,21 +473,27 @@ class onnxModifier:
 
         self.post_process(modify_info['postprocess_args'])
 
-    def check_and_save_model(self, save_dir='./modified_onnx'):
+    # BEGIN
+    def get_base_dir(self):
+        if getattr(sys, 'frozen', False):
+            return os.path.dirname(sys.executable)
+        return os.path.dirname(os.path.abspath(__file__))
+    # END
+
+    def check_and_save_model(self, save_dir='./modified_onnx'):  # ✅ 함수 원형 유지
         logging.info("saving model...")
 
-        # onnx.checker.check_model(self.model_proto)
+        base_dir = self.get_base_dir()
+        if not os.path.isabs(save_dir):
+            save_dir = os.path.join(base_dir, save_dir)
         save_dir = os.path.abspath(save_dir)
-        if not os.path.exists(save_dir):
-            os.mkdir(save_dir)
-        save_path = os.path.join(save_dir, 'modified_' + self.model_name)
 
-        if save_path:
-            onnx.save(self.model_proto, save_path)
-            logging.info("model saved in {} !".format(save_dir))
-            return save_path
-        else:
-            return "NULL"
+        os.makedirs(save_dir, exist_ok=True)
+        save_path = os.path.join(save_dir, 'modified_' + self.model_name)
+        onnx.save(self.model_proto, save_path)
+        logging.info("model saved in {} !".format(save_dir))
+
+        return save_path
 
     def inference(self, input_shape=[1, 3, 224, 224], x=None, output_names=None):
         import onnxruntime as rt
